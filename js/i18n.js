@@ -48,6 +48,7 @@ const HI={
   'Closed':'बंद','Not seating now':'अभी मेहमान नहीं ले रहे','Wait time not updated':'इंतज़ार का समय अपडेट नहीं हुआ','No wait':'कोई इंतज़ार नहीं',
   'Walk straight in':'सीधे अंदर जाइए','{n} min':'{n} मिनट','45+ min':'45+ मिनट','wait time':'इंतज़ार का समय','just now':'अभी-अभी','{n} min ago':'{n} मिनट पहले',
   '{n} h ago':'{n} घंटे पहले','{n} d ago':'{n} दिन पहले','Open now':'अभी खुला है','Closed now':'अभी बंद है','Unit {id}':'यूनिट {id}',' & ':' और ',
+  'Sunny':'धूप','Clear':'साफ़ आसमान','Partly cloudy':'हल्के बादल','Cloudy':'बादल छाए हैं','Fog':'कोहरा','Drizzle':'बूंदाबांदी','Rain':'बारिश','Thunderstorm':'आंधी-तूफ़ान','Snow':'बर्फ़बारी','Weather now':'अभी का मौसम','Weather':'मौसम',
   'Open today {hours}':'आज खुला: {hours}','{n} restaurant with no wait':'{n} रेस्टोरेंट में कोई इंतज़ार नहीं','{n} restaurants with no wait':'{n} रेस्टोरेंट में कोई इंतज़ार नहीं',
   '{n} offer live':'{n} ऑफ़र चालू','{n} offers live':'{n} ऑफ़र चालू','Mall hours: ':'मॉल का समय: ',
   // routes

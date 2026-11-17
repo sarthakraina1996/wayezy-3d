@@ -309,7 +309,8 @@ function kitParts(name,f){const root=KIT&&KIT[name];if(!root)return null;const i
   root.traverse(o=>{if(!o.isMesh)return;const key=f+'|'+o.material.name;
     if(!KIT_MATS[key]){const m=o.material.clone();if(m.map)m.map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());KIT_MATS[key]=m;
       // the Blender sky-light bake darkens crowns inside; lift the whole plant back to daylight brightness here
-      if(/leaf|frond|flowers|bougain/.test(m.name)){m.color.multiplyScalar(/flowers|bougain/.test(m.name)?1.3:1.6);if(m.alphaTest>0&&!LOWPOWER)m.alphaToCoverage=true;}   // soft leaf edges with MSAA
+      if(/leaf|frond|flowers|bougain|bark|palmtrunk|trunk/.test(m.name))m.userData.sway=1;
+      if(/leaf|frond|flowers|bougain/.test(m.name)){m.userData.leaf=1;m.color.multiplyScalar(/flowers|bougain/.test(m.name)?1.3:1.6);if(m.alphaTest>0&&!LOWPOWER)m.alphaToCoverage=true;}   // soft leaf edges with MSAA
       else if(/bark|palmtrunk/.test(m.name))m.color.multiplyScalar(1.3);}
     out.push({geo:o.geometry,mat:KIT_MATS[key],m:new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld)});});return out;}
 /* copies of an asset: items = [{x,y,z,rot,s,sy}] in world units; one instanced mesh per part */
@@ -332,7 +333,7 @@ function buildTrees(f,group){
   if(!TREE_GEO){TREE_GEO={t0:makeTreeGeo(0),t1:makeTreeGeo(1),bush:makeBushGeo(),palm:makePalmParts(),frondTex:frondTexture()};}
   const byType={t0:[],t1:[],bush:[],palm:[]};
   T.forEach((t,i)=>{const type=t[3]||(rnd(i*3.3)>0.5?'t0':'t1');(byType[type]||byType.t0).push(t);});
-  const leafMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85});
+  const leafMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85});leafMat.userData.sway=leafMat.userData.leaf=1;
   const m=new THREE.Matrix4(),q=new THREE.Quaternion(),s=new THREE.Vector3(),p=new THREE.Vector3(),col=new THREE.Color(),up=new THREE.Vector3(0,1,0);
   const place=(geo,mat,list,shadow,tint)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,mat,list.length);
     list.forEach((t,i)=>{const w=W3(f,t[0],t[1],0);const k=t[2]||1;p.set(w.x,t[4]||0,w.z);q.setFromAxisAngle(up,rnd(i+t[0])*6.28);s.set(k,k*(0.92+rnd(i*5+t[1])*0.2),k);m.compose(p,q,s);im.setMatrixAt(i,m);
@@ -340,8 +341,8 @@ function buildTrees(f,group){
     im.castShadow=shadow;im.receiveShadow=true;group.add(im);};
   if(!CANOPY)CANOPY=makeCanopyTree();const TM=treeMats(f);const tl=byType.t0.concat(byType.t1);
   place(CANOPY.bark,TM.bark,tl,true,false);place(CANOPY.lobes,TM.lobes,tl,true,true);place(CANOPY.cards,TM.cards,tl,false,true);place(TREE_GEO.bush,leafMat,byType.bush,false,true);
-  place(TREE_GEO.palm.trunk,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.9}),byType.palm,true,false);
-  place(TREE_GEO.palm.fronds,new THREE.MeshStandardMaterial({map:TREE_GEO.frondTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.8,color:0xffffff}),byType.palm,false,false);
+  const palmTrunk=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.9});palmTrunk.userData.sway=1;place(TREE_GEO.palm.trunk,palmTrunk,byType.palm,true,false);
+  const frondMat=new THREE.MeshStandardMaterial({map:TREE_GEO.frondTex,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.8,color:0xffffff});frondMat.userData.sway=frondMat.userData.leaf=1;place(TREE_GEO.palm.fronds,frondMat,byType.palm,false,false);
 }
 
 /* ---------- water: scrolling normal maps, fresnel sky reflection, sun glints, fountain ripples ---------- */
@@ -850,8 +851,8 @@ function makeCanopyTree(){
 /* one set per floor: ghosting a floor in the stacked view must not ghost another floor's trees */
 const TREE_MATS={},LEAF_TEX={};
 function treeMats(f){if(!LEAF_TEX.cards){LEAF_TEX.cards=leafCardTex();LEAF_TEX.under=underplantTex();}
-  if(!TREE_MATS[f]){TREE_MATS[f]={bark:new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}),lobes:new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85}),
-  cards:new THREE.MeshStandardMaterial({map:LEAF_TEX.cards,alphaTest:0.5,side:THREE.DoubleSide,roughness:0.8}),under:new THREE.MeshStandardMaterial({map:LEAF_TEX.under,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.85})};}return TREE_MATS[f];}
+  if(!TREE_MATS[f]){const sw=o=>{o.userData.sway=1;return o;},lf=o=>{o.userData.sway=o.userData.leaf=1;return o;};TREE_MATS[f]={bark:sw(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95})),lobes:lf(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85})),
+  cards:lf(new THREE.MeshStandardMaterial({map:LEAF_TEX.cards,alphaTest:0.5,side:THREE.DoubleSide,roughness:0.8})),under:lf(new THREE.MeshStandardMaterial({map:LEAF_TEX.under,alphaTest:0.45,side:THREE.DoubleSide,roughness:0.85}))};}return TREE_MATS[f];}
 // planter tree as in the reference: concrete planter, timber bench, underplanting, LED under-glow
 function addPlanterTree(group,f,x,y,rotDeg,scale,kind){
   if(!CANOPY&&!KIT)CANOPY=makeCanopyTree();const TM=treeMats(f);const k=scale||1;
@@ -972,7 +973,110 @@ function applyMode(){
   FLOOR_ORDER.forEach(f=>{const M=MATS[f];if(M)M.facade.emissiveIntensity=night?1.6:0.15;});
   INTERIOR_MATS.forEach(([m,d,n])=>m.emissiveIntensity=night?n:d);
   FLOOR_ORDER.forEach(f=>{if(floorGroup[f]){floorGroup[f].userData.fade=undefined;setFloorFade(f,fadeOf(f));}});
+  WX.base={sun:sun.intensity,hemi:hemi.intensity,bg:scene.background.clone(),near:scene.fog.near,far:scene.fog.far};   // weather works from these
 }
+
+/* ---------- weather (weather.js picks it; blender/bake_weather.py made the rain, snow and cloud sprites) ----------
+   Every standard material gets one hook (hookWeather): cloud shadows drift over everything, what faces the sky gets
+   wet (darker, glossy, with rain rings) or takes snow; trees, palms and bushes (userData.sway) lean and swing with
+   the wind from their roots up, their leaves (userData.leaf) flutter. Rain and snow are two point clouds that follow
+   the camera: drops and flakes keep their place in the world as the view moves, sized to the view. A storm flashes.
+   The look moves smoothly from one weather to the next (stepWeather); snow settles and the paving dries slowly. */
+const WXU={wind:{value:0.12},dir:{value:new THREE.Vector2(0.8,0.6)},rain:{value:0},wet:{value:0},snow:{value:0},cloud:{value:0},
+  cloudTex:{value:null},cloudOff:{value:new THREE.Vector2()}};
+function wxTex(file,srgb,blank){const c=document.createElement('canvas');c.width=c.height=4;const g=c.getContext('2d');g.fillStyle=blank;g.fillRect(0,0,4,4);
+  const t=new THREE.Texture(c);t.encoding=srgb?THREE.sRGBEncoding:THREE.LinearEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.needsUpdate=true;
+  const img=new Image();img.onload=()=>{t.dispose();t.image=img;t.needsUpdate=true;};img.src='media/weather/'+file+'.webp';return t;}
+WXU.cloudTex.value=wxTex('clouds',false,'#000');
+const WX_SWAY=`{float wxH=max(0.,position.y);vec3 wxP;vec3 wxD=vec3(wxDir.x,0.,wxDir.y),wxL;
+#ifdef USE_INSTANCING
+wxP=(modelMatrix*instanceMatrix[3]).xyz;mat4 wxM=modelMatrix*instanceMatrix;
+#else
+wxP=modelMatrix[3].xyz;mat4 wxM=modelMatrix;
+#endif
+wxL=vec3(dot(wxM[0].xyz,wxD),dot(wxM[1].xyz,wxD),dot(wxM[2].xyz,wxD))/max(1e-3,dot(wxM[0].xyz,wxM[0].xyz));
+float wxPh=dot(wxP.xz,vec2(0.13,0.21));
+float wxS=0.55+sin(wxT*1.25+wxPh)*0.55+sin(wxT*2.7+wxPh*1.7)*0.25;
+transformed+=wxL*wxWind*wxH*wxH*0.022*wxS;
+FLUTTER}`;
+const WX_FLUTTER='transformed+=vec3(sin(wxT*7.1+position.x*3.1+wxPh),sin(wxT*6.3+position.z*2.9),cos(wxT*7.9+position.y*2.3))*0.06*wxWind*min(1.,wxH*0.25);';
+const WX_PARS=`uniform float wxT;uniform float wxRain;uniform float wxWet;uniform float wxSnow;uniform float wxCloud;uniform sampler2D wxCloudTex;uniform vec2 wxCloudOff;varying vec3 vWxW;
+float wxHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}`;
+const WX_FRAG=`{vec3 wxUp=normalize((viewMatrix*vec4(0.,1.,0.,0.)).xyz);float up=clamp(dot(normal,wxUp),0.,1.);
+if(wxCloud>0.001){float c=texture2D(wxCloudTex,vWxW.xz/240.+wxCloudOff).r;diffuseColor.rgb*=1.-wxCloud*0.4*smoothstep(0.25,0.8,c);}
+float wet=wxWet*smoothstep(0.6,0.95,up);
+if(wet>0.001){diffuseColor.rgb*=1.-0.3*wet;roughnessFactor=mix(roughnessFactor,0.1,0.85*wet);
+  if(wxRain>0.01){vec2 q=vWxW.xz/0.85;vec2 id=floor(q);vec2 f=fract(q)-0.5;float h=wxHash(id);float ph=fract(wxT*(0.8+h*0.7)+h*7.);
+    vec2 o=vec2(wxHash(id+3.1),wxHash(id+7.7))-0.5;float d=length(f-o*0.4);
+    float ring=(1.-smoothstep(0.,0.05,abs(d-ph*0.42)))*(1.-ph)*step(h,wxRain*0.8);diffuseColor.rgb+=ring*0.22*wet;}}
+float sn=wxSnow*smoothstep(0.3,0.75,up);
+if(sn>0.001){float n=wxHash(floor(vWxW.xz*2.5));float cover=clamp(sn*1.35-n*0.35,0.,1.);
+  diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.93,0.95,0.98),cover);roughnessFactor=mix(roughnessFactor,0.85,cover);}}`;
+function hookWeather(m){if(!m||!m.isMeshStandardMaterial||m.userData.wx)return;m.userData.wx=1;
+  const sway=!!m.userData.sway,leaf=!!m.userData.leaf,prev=m.onBeforeCompile,prevKey=m.customProgramCacheKey.bind(m);
+  m.onBeforeCompile=function(sh,r){if(prev)prev.call(this,sh,r);
+    Object.assign(sh.uniforms,{wxT:U.time,wxWind:WXU.wind,wxDir:WXU.dir,wxRain:WXU.rain,wxWet:WXU.wet,wxSnow:WXU.snow,wxCloud:WXU.cloud,wxCloudTex:WXU.cloudTex,wxCloudOff:WXU.cloudOff});
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float wxT;uniform float wxWind;uniform vec2 wxDir;varying vec3 vWxW;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\n'+(sway?WX_SWAY.replace('FLUTTER',leaf?WX_FLUTTER:''):''))
+      .replace('#include <worldpos_vertex>','#include <worldpos_vertex>\n{vec4 wxQ=vec4(transformed,1.);\n#ifdef USE_INSTANCING\nwxQ=instanceMatrix*wxQ;\n#endif\nvWxW=(modelMatrix*wxQ).xyz;}');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n'+WX_PARS).replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n'+WX_FRAG);};
+  m.customProgramCacheKey=()=>prevKey()+'|wx'+(sway?(leaf?'l':'s'):'');}
+/* rain and snow: points in a box round the view's centre, wrapped so each keeps its place in the world */
+const PRECIP_VS=`attribute vec4 seed;uniform vec3 uCenter;uniform float uBox;uniform float uH;uniform float uT;uniform float uSpeed;uniform float uSize;uniform float uPx;uniform float uAmt;uniform float uWindK;uniform float uSnow;uniform vec2 uWind;
+varying float vA;varying float vR;
+void main(){vR=seed.z;if(seed.w>uAmt){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;vA=0.;return;}
+  float sp=uSpeed*(0.8+0.4*seed.z),fall=fract(seed.y-uT*sp/uH);
+  vec3 p;p.y=uCenter.y-uH*0.2+(1.-fall)*uH;
+  vec2 b=vec2(seed.x,fract(seed.z*13.7))*2.*uBox;
+  b+=uWind*uWindK*fall*uH*(uSnow>0.5?1.2:0.35);
+  if(uSnow>0.5)b+=vec2(sin(uT*0.9+seed.x*40.),cos(uT*0.7+seed.z*40.))*uBox*0.012;
+  p.xz=uCenter.xz+mod(b-uCenter.xz+uBox,2.*uBox)-uBox;
+  vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=min(uSnow>0.5?22.:40.,uSize*uPx/max(1.,-mv.z));
+  vA=smoothstep(0.,0.1,fall)*(1.-smoothstep(0.88,1.,fall));}`;
+const PRECIP_FS=`uniform sampler2D uTex;uniform float uSnow;uniform float uFade;varying float vA;varying float vR;
+void main(){vec2 uv=vec2(gl_PointCoord.x,1.-gl_PointCoord.y);vec4 c;
+  if(uSnow>0.5){float a=vR*6.283;uv=mat2(cos(a),-sin(a),sin(a),cos(a))*(uv-0.5)+0.5;if(any(lessThan(uv,vec2(0.)))||any(greaterThan(uv,vec2(1.))))discard;
+    float k=floor(fract(vR*7.31)*4.);c=texture2D(uTex,(uv+vec2(mod(k,2.),floor(k/2.)))*0.5);c.rgb=mix(vec3(0.97,0.98,1.),c.rgb,0.5);}
+  else{if(abs(uv.x-0.5)>0.125)discard;c=texture2D(uTex,vec2((uv.x-0.5)*4.+0.5,uv.y));c.rgb=vec3(0.86,0.9,0.96);}
+  float a=c.a*vA*uFade*(uSnow>0.5?0.95:0.6);if(a<0.01)discard;gl_FragColor=vec4(c.rgb,a);
+  #include <encodings_fragment>
+}`;
+function makePrecip(n,snow){const g=new THREE.BufferGeometry(),pos=new Float32Array(n*3),seed=new Float32Array(n*4);
+  for(let i=0;i<n;i++){seed[i*4]=rnd(i*1.13+0.5);seed[i*4+1]=rnd(i*2.31+1.7);seed[i*4+2]=rnd(i*3.77+2.9);seed[i*4+3]=rnd(i*5.93+4.1);}
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('seed',new THREE.BufferAttribute(seed,4));
+  const m=new THREE.ShaderMaterial({uniforms:{uTex:{value:wxTex(snow?'snow':'rain',true,'rgba(0,0,0,0)')},uCenter:{value:new THREE.Vector3()},uBox:{value:60},uH:{value:60},uT:U.time,
+      uSpeed:{value:20},uSize:{value:1},uPx:{value:600},uAmt:{value:0},uWind:WXU.dir,uWindK:WXU.wind,uSnow:{value:snow?1:0},uFade:{value:1}},
+    vertexShader:PRECIP_VS,fragmentShader:PRECIP_FS,transparent:true,depthWrite:false,toneMapped:false});
+  const pts=new THREE.Points(g,m);pts.frustumCulled=false;pts.renderOrder=8;pts.visible=false;scene.add(pts);return pts;}
+const WX_LOOK={off:{},
+  sunny:{wind:0.12,sun:1.12},partly:{wind:0.25,cloud:0.35,sun:0.95},cloudy:{wind:0.35,cloud:0.8,sun:0.55,hemi:0.95,fog:0.85,grey:0.12},
+  fog:{wind:0.05,cloud:0.45,sun:0.45,hemi:0.9,fog:0.32,grey:0.2},drizzle:{wind:0.35,rain:0.3,wet:0.7,cloud:0.8,sun:0.5,fog:0.8,grey:0.12},
+  rain:{wind:0.6,rain:1,wet:1,cloud:0.9,sun:0.38,hemi:0.85,fog:0.7,grey:0.2},storm:{wind:1,rain:1.3,wet:1,cloud:1,sun:0.28,hemi:0.75,fog:0.6,grey:0.28,flash:1},
+  snow:{wind:0.25,snow:1,flakes:1,cloud:0.7,sun:0.6,hemi:1.05,fog:0.7,grey:0.15}};
+const WX={kind:null,cur:{wind:0.12,rain:0,wet:0,snow:0,cloud:0,sun:1,hemi:1,fog:1,grey:0,flakes:0},want:null,base:null,flash:0,nextFlash:6,rain:null,flakes:null,kmh:10};
+function wxWant(kind){const L=Object.assign({wind:0,rain:0,wet:0,snow:0,cloud:0,sun:1,hemi:1,fog:1,grey:0,flakes:0,flash:0},WX_LOOK[kind]||{});
+  if(kind&&WX.kmh)L.wind=Math.max(L.wind,Math.min(1,WX.kmh/45));return L;}       // a windy day sways the trees whatever the sky
+function setWeather(w){WX.kind=w&&w.kind||null;WX.kmh=w&&isFinite(w.wind)?w.wind:0;WX.want=wxWant(WX.kind);if(reduce)Object.assign(WX.cur,WX.want);}
+function buildWeather(){scene.traverse(o=>{(Array.isArray(o.material)?o.material:[o.material]).forEach(hookWeather);});
+  WX.rain=makePrecip(LOWPOWER?2500:7000,false);WX.flakes=makePrecip(LOWPOWER?1500:4000,true);WX.want=wxWant(null);}
+const wxSize=new THREE.Vector2();
+function stepWeather(dt,t){const c=WX.cur,w=WX.want;if(!w||!WX.base)return;
+  for(const k in c){const rate=k==='snow'?(w.snow>c.snow?0.12:0.3):k==='wet'?(w.wet>c.wet?0.5:0.08):0.6;c[k]+=(w[k]-c[k])*Math.min(1,dt*rate*(reduce?99:1));}
+  WXU.wind.value=reduce?0:c.wind;WXU.rain.value=c.rain;WXU.wet.value=c.wet;WXU.snow.value=c.snow;WXU.cloud.value=c.cloud;
+  WXU.cloudOff.value.set(t*0.004*(0.3+c.wind),t*0.0028*(0.3+c.wind));
+  // a storm: now and then a double flash
+  if(w.flash&&!reduce){WX.nextFlash-=dt;if(WX.nextFlash<=0){WX.flash=1;WX.nextFlash=5+Math.random()*9;}}WX.flash=Math.max(0,WX.flash-dt*2.6);
+  const fl=WX.flash>0?(WX.flash>0.75||(WX.flash>0.35&&WX.flash<0.55)?1:0.25)*WX.flash:0;
+  const B=WX.base,night=MODE==='evening';
+  sun.intensity=B.sun*c.sun+fl*1.2;hemi.intensity=B.hemi*c.hemi+fl*(night?1.4:0.8);
+  const bg=scene.background;bg.copy(B.bg).lerp(new THREE.Color(night?0x0B0F1E:0xB4BAC4),c.grey);if(fl)bg.lerp(new THREE.Color(0xE8EEFF),fl*0.35);
+  EDGE.bg.value.copy(bg);scene.fog.color.copy(bg);scene.fog.near=B.near*c.fog;scene.fog.far=B.far*c.fog;
+  // the rain and snow follow the view, sized to it
+  const d=camera.position.distanceTo(controls.target);renderer.getDrawingBufferSize(wxSize);const px=wxSize.y/(2*Math.tan(camera.fov*Math.PI/360));
+  [[WX.rain,Math.min(1,c.rain),false],[WX.flakes,c.flakes,true]].forEach(([P,amt,snow])=>{if(!P)return;P.visible=amt>0.01&&!reduce;if(!P.visible)return;const u=P.material.uniforms;
+    u.uCenter.value.copy(controls.target);u.uBox.value=Math.max(30,Math.min(240,d*0.75));u.uH.value=Math.max(30,Math.min(260,d*0.95));u.uPx.value=px;
+    u.uSize.value=d*(snow?0.0085:0.03);u.uSpeed.value=d*(snow?0.07:1.1);u.uAmt.value=amt;u.uFade.value=snow?Math.min(1,amt*3):Math.min(1.6,c.rain*1.25);});
+  if(WX.kind==='storm'||c.rain>0.01||c.flakes>0.01||fl)lastActive=performance.now();}   // keep drawing at full rate while it moves
 
 /* ---------- floor layout: floors slide and cross-fade ---------- */
 let layoutTween=null,floorMats=null,labelsDirty=true;
@@ -1427,7 +1531,7 @@ new ResizeObserver(resize).observe(wrap);resize();
 const clock3=new THREE.Clock();let paused=false,skip=0,loopErrors=0,built=false,shadowKey='';
 function frame(){
   const dt=Math.min(0.25,clock3.getDelta()),t=clock3.elapsedTime,now=performance.now();   // capped so a stall never jumps the walk
-  U.time.value=t;if(layoutTween)DITHER_T.value=(DITHER_T.value+1)%64;stepLayout(now);stepCam(now);stepGuide(dt);stepDoors(dt);stepRouteAnim(dt,now);pulseHighlight(t);stepBadges(dt);
+  U.time.value=t;if(layoutTween)DITHER_T.value=(DITHER_T.value+1)%64;stepLayout(now);stepCam(now);stepGuide(dt);stepDoors(dt);stepRouteAnim(dt,now);stepWeather(dt,t);pulseHighlight(t);stepBadges(dt);
   if(idleOrbit&&!camTween&&!guide){const off=camera.position.clone().sub(controls.target);off.applyAxisAngle(new THREE.Vector3(0,1,0),dt*0.07);camera.position.copy(controls.target).add(off);labelsDirty=true;}
   controls.update();turnBadges(dt);
   if(kioskRing&&!reduce){const k=(t%2.2)/2.2;kioskRing.scale.setScalar(0.8+k*1.8);kioskRing.material.opacity=0.6*(1-k);}
@@ -1475,7 +1579,7 @@ async function compileInSlices(){const objs=[];scene.traverse(o=>{if(o.material)
 Promise.all([fontsReady,loadKit()]).then(async([,kit])=>{KIT=kit;
   try{
     FLOOR_ORDER.forEach(buildFloor);collectFloorMats();
-    buildLabels();buildKioskMarker();buildGuideDot();applyMode();
+    buildLabels();buildKioskMarker();buildGuideDot();buildWeather();applyMode();
     FLOOR_ORDER.forEach(f=>{floorGroup[f].visible=true;});await nextFrame();await compileInSlices();
     {const rt=new THREE.WebGLRenderTarget(8,8),culled=[];scene.traverse(o=>{if(o.frustumCulled){o.frustumCulled=false;culled.push(o);}});   // and its textures and buffers
       /* three r147 gives any off-screen target linear output and no tone mapping, i.e. a second set of every shader
@@ -1489,11 +1593,11 @@ Promise.all([fontsReady,loadKit()]).then(async([,kit])=>{KIT=kit;
       camera.position.copy(endT).add(new THREE.Vector3().setFromSpherical(new THREE.Spherical(Math.min(controls.maxDistance,endP.distanceTo(endT)*1.7),0.3,HEADING+0.9)));
       controls.update();startCam(endT,endP,2200);}
     renderer.compile(scene,camera);loop();onReady&&onReady();
-    if(QS.get('debug')==='1')window.MAPDBG={THREE,scene,camera,controls,renderer,floorGroup,startCam,W3,frame};   // inspection only
+    if(QS.get('debug')==='1')window.MAPDBG={THREE,scene,camera,controls,renderer,floorGroup,startCam,W3,frame,WX};   // inspection only
   }catch(e){onFail&&onFail(e);}
 });
 
-return {kind:'3d',setFloor,fitFloor:ms=>fitFloor(ms),drawRoute,clearRoute,showRouteOnFloor,startGuide,stopGuide,guideJump,guideHold,setGuideSpeed(v){SPEED=v;},applyHighlights,markUnit,applyMode,refreshSigns,refreshStores,relabel,
+return {kind:'3d',setFloor,fitFloor:ms=>fitFloor(ms),drawRoute,clearRoute,showRouteOnFloor,startGuide,stopGuide,guideJump,guideHold,setGuideSpeed(v){SPEED=v;},setWeather,applyHighlights,markUnit,applyMode,refreshSigns,refreshStores,relabel,
   toggleStack,zoom:k=>dolly(k),rotate:a=>orbit(a),toggleTilt,faceKiosk,resize,setOrigin,
   setIdle(on){idleOrbit=!!on&&!reduce;if(on){stopGuide();}},pause(on){paused=!!on;if(!on)clock3.getDelta();},
   isReady:()=>built,

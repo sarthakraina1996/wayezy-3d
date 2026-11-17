@@ -131,7 +131,7 @@ function guideJump(leg,m,play){const r=state.route;if(!r)return;if(!guide){guide
 function guideHold(on){if(!guide)return;guide.hold=!!on;if(!on){if(guide.endPending){setTimeout(()=>{if(guide&&!guide.hold){stopGuide();showRouteOnFloor(true);}},500);return;}walk=true;lastT=0;requestAnimationFrame(stepWalk);}}
 
 return {kind:'2d',setFloor,fitFloor,drawRoute,clearRoute,showRouteOnFloor,startGuide,stopGuide,guideJump,guideHold,setGuideSpeed(v){walkSpeed=v;},applyHighlights,markUnit,refreshStores,
-  applyMode(){svg.classList.toggle('night',MODE==='evening');},refreshSigns(){},
+  applyMode(){svg.classList.toggle('night',MODE==='evening');},setWeather(){},refreshSigns(){},
   relabel(){svg.setAttribute('aria-label',T('Floor plan of {venue}',{venue:venueName()}));labelEls.forEach(t=>{const k=t.dataset.k;if(k)t.textContent=k==='Main entrance'?T(k).toUpperCase():T(k);});routeG.querySelectorAll('text').forEach(t=>{if(t._txt)t.textContent=t._txt();});setOrigin();},
   toggleStack(){toast(T('“All floors” needs the 3D map. Use the floor buttons.'));},zoom:k=>zoom(k),rotate(){},toggleTilt(){return null;},faceKiosk(){fitFloor(400);},
   resize(){},setOrigin,setIdle(){},pause(){},isReady:()=>true,dispose(){host.innerHTML='';}};

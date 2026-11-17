@@ -87,7 +87,7 @@ MAPR=new Proxy({kind:'none',setFloor(f){cur=f;syncFloorUI();},toggleTilt(){retur
 function startMap(){
   const loading=$id('loading');
   const ready=()=>{if(loading&&loading.parentNode)loading.remove();setTimeout(()=>{if(Object.values(BRANDS).some(x=>x.custom))MAPR.refreshStores();},0);   /* stores added in the admin hub before the map finished building */
-    syncFloorUI();applyMode();applyHighlights();
+    syncFloorUI();applyMode();applyHighlights();if(typeof Weather!=='undefined')MAPR.setWeather({kind:Weather.kind,wind:Weather.wind});
     if(state.route){drawRoute(state.route);setFloor(state.route.legs[0].f,false);showRouteOnFloor(false);}   // a route chosen before the map finished loading
     renderQuick();renderPanels();};
   const fallback=e=>{
@@ -102,3 +102,5 @@ function startMap(){
   ensureThree().then(()=>typeof Intro!=='undefined'?Intro.over():0).then(()=>{try{MAPR=createMap3D(ready,fallback);}catch(e){fallback(e);}},fallback);   // the 3D build (shaders on the graphics chip) waits for the intro to end, so the intro never stutters
 }
 updateFloorUI();
+/* the weather (weather.js): the map shows it, the kiosk header and the phone's welcome line say it */
+if(typeof Weather!=='undefined')Weather.on(w=>{MAPR.setWeather({kind:w.kind,wind:w.wind});if(typeof renderToday==='function')renderToday();if(VIEW==='app'&&typeof renderPanels==='function')renderPanels();});

@@ -80,7 +80,7 @@ setInterval(()=>{walkBtn.hidden=!(state.route&&!guide);},250);
 document.getElementById('mapwrap').addEventListener('pointerdown',cancelScheduledGuide);
 
 /* ---------------- live data helpers (collections come from datastore.js) ---------------- */
-function onInfo(){applyCustomStores();onAdsData();renderPanels();renderQuick();refreshSigns();if(VIEW==='admin')renderAdmin();if(typeof Member!=='undefined')Member.boot();}
+function onInfo(){if(typeof Weather!=='undefined')Weather.start();applyCustomStores();onAdsData();renderPanels();renderQuick();refreshSigns();if(VIEW==='admin')renderAdmin();if(typeof Member!=='undefined')Member.boot();}
 /* shops added in the admin hub (stores/<key> with custom:true) join the map, search and routing */
 let customKey='';
 function applyCustomStores(){const list=Object.entries(INFO.stores).filter(([k,v])=>v&&v.custom&&v.name&&Array.isArray(v.units));
@@ -154,7 +154,7 @@ function renderQuick(){applyTheme();{const v=document.getElementById('pVenue');i
 function renderToday(){const el=document.getElementById('kToday');if(!el)return;const m=INFO.settings.mall||{};
   const hours=m.hours||(m.open&&m.close?hourLabel(m.open)+' – '+hourLabel(m.close):'');
   const nowait=dineList().filter(b=>{const w=waitView(b);return w&&w.cls==='ok';}).length,offers=allOffers().length;
-  el.innerHTML=[hours?`<span>${IC.clock}${T('Open today {hours}',{hours:escapeHtml(hours)})}</span>`:'',nowait?`<span>${IC.fork}${T(nowait>1?'{n} restaurants with no wait':'{n} restaurant with no wait',{n:nowait})}</span>`:'',offers?`<span>${IC.tag}${T(offers>1?'{n} offers live':'{n} offer live',{n:offers})}</span>`:''].filter(Boolean).join('');}
+  el.innerHTML=[typeof Weather!=='undefined'?Weather.chipHTML():'',hours?`<span>${IC.clock}${T('Open today {hours}',{hours:escapeHtml(hours)})}</span>`:'',nowait?`<span>${IC.fork}${T(nowait>1?'{n} restaurants with no wait':'{n} restaurant with no wait',{n:nowait})}</span>`:'',offers?`<span>${IC.tag}${T(offers>1?'{n} offers live':'{n} offer live',{n:offers})}</span>`:''].filter(Boolean).join('');}
 function clearSelection(){if(state.brand||state.route||state.toilet){state.brand=null;state.toilet=null;state.targetUnit=null;state.route=null;state.noRoute=false;state.here=false;cancelScheduledGuide();clearRoute();}}
 /* the bar answers at once; the list and the map follow a frame later (motion.js afterPaint), so the selection slides smoothly */
 function setGroup(g,keep,then){state.cat=state.cat===g&&!keep?null:g;clearSelection();renderQuick();afterPaint(()=>{applyHighlights();renderPanels();if(then)then();});}
@@ -207,7 +207,7 @@ function greetHTML(){const h=new Date().getHours();const g=T(h<12?'Good morning'
   return `<div class="quick five">${[['wc','wc','Toilets'],['lift','lift','Lifts'],['exit','exit','Exit'],['svc','car','Parking'],['help','help','Help']].map(([a,i,t])=>`<button data-act="${a}"><i>${icn(i)}</i><span>${T(t)}</span></button>`).join('')}</div>
     ${v&&v.status!=='parked'?`<button class="greet-car ${v.status}" data-act="svc"><i>${icn('key')}</i><span><small>${T('Valet')}</small><b>${T(v.status==='ready'?'Your car is ready':'Your car is on its way')}</b></span><em>${IC.chev}</em></button>`
       :c?`<button class="greet-car" data-act="findcar"><i>${IC.car}</i><span><small>${T('Your car')}</small><b>${escapeHtml(c.level)} · ${escapeHtml(c.spot)}</b></span><em>${T('Find my car')}${IC.chev}</em></button>`:''}
-    <div class="greet${mem?' mem':''}"><div><small>${g}${mem&&firstName()?', '+escapeHtml(firstName()):''}</small><b>${T(mem?'Good to see you at {venue}':'Welcome to {venue}',{venue:venueName()})}</b><span>${[mallHours()?T('Open today {hours}',{hours:escapeHtml(mallHours())}):'',offers?T(offers>1?'{n} offers live':'{n} offer live',{n:offers}):''].filter(Boolean).join(' · ')}</span></div>
+    <div class="greet${mem?' mem':''}"><div><small>${g}${mem&&firstName()?', '+escapeHtml(firstName()):''}</small><b>${T(mem?'Good to see you at {venue}':'Welcome to {venue}',{venue:venueName()})}</b><span>${[typeof Weather!=='undefined'?escapeHtml(Weather.text()):'',mallHours()?T('Open today {hours}',{hours:escapeHtml(mallHours())}):'',offers?T(offers>1?'{n} offers live':'{n} offer live',{n:offers}):''].filter(Boolean).join(' · ')}</span></div>
     ${mem?`<button class="greet-pts" data-act="account"><b>${(Member.me.points||0).toLocaleString(locale())}</b><span>${T('Points')}</span></button>`:join?`<button class="greet-join" data-act="signin">${T('Join')}</button>`:''}</div>`;}
 function favRowHTML(){if(typeof Member==='undefined'||!Member.on)return '';const favs=(Member.me.favs||[]).filter(isBrand);if(!favs.length)return '';
   return `<div class="sec-title"><h3>${T('Your stores')}</h3><button data-act="account">${T('See all')}</button></div><div class="hscroll favrow">${favs.slice(0,10).map(b=>`<button class="favchip" data-b="${b}">${thumbHTML(b)}<span>${escapeHtml(BRANDS[b].name)}</span></button>`).join('')}</div>`;}
